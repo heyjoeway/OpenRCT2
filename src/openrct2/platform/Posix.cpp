@@ -27,6 +27,10 @@
 #    include "../util/Util.h"
 #    include "platform.h"
 
+#ifdef __EMSCRIPTEN__
+#include <experimental/filesystem>
+#endif
+
 #    include <libgen.h>
 #    include <locale.h>
 #    include <locale>
@@ -131,11 +135,14 @@ static mode_t openrct2_getumask()
 
 bool platform_ensure_directory_exists(const utf8* path)
 {
+    log_verbose("Create directory: %s", path);
+    #ifdef __EMSCRIPTEN__
+    return std::filesystem::create_directories(path);
+    #else
     mode_t mask = openrct2_getumask();
     char buffer[MAX_PATH];
     safe_strcpy(buffer, path, sizeof(buffer));
 
-    log_verbose("Create directory: %s", buffer);
     for (char* p = buffer + 1; *p != '\0'; p++)
     {
         if (*p == '/')
@@ -167,6 +174,7 @@ bool platform_ensure_directory_exists(const utf8* path)
     }
 
     return true;
+    #endif
 }
 
 bool platform_directory_delete(const utf8* path)
@@ -442,11 +450,6 @@ datetime64 platform_get_datetime_now_utc()
 std::string platform_get_username()
 {
     std::string result;
-    auto pw = getpwuid(getuid());
-    if (pw != nullptr)
-    {
-        result = std::string(pw->pw_name);
-    }
     return result;
 }
 

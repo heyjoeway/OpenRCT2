@@ -22,6 +22,10 @@
 
 #include <fstream>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 namespace File
 {
     bool Exists(const std::string& path)
@@ -90,6 +94,12 @@ namespace File
     {
         auto fs = FileStream(path, FILE_MODE_WRITE);
         fs.Write(buffer, length);
+
+        #ifdef __EMSCRIPTEN__
+            EM_ASM(
+                FS.syncfs(function (err) { console.log(err); });
+            );
+        #endif
     }
 
     std::vector<std::string> ReadAllLines(const std::string& path)

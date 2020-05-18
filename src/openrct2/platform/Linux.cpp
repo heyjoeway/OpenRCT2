@@ -166,6 +166,7 @@ bool platform_get_steam_path(utf8* outPath, size_t outSize)
         }
     }
 
+    #ifndef __EMSCRIPTEN__
     const char* homeDir = getpwuid(getuid())->pw_dir;
     if (homeDir != nullptr)
     {
@@ -186,6 +187,7 @@ bool platform_get_steam_path(utf8* outPath, size_t outSize)
             return true;
         }
     }
+    #endif
     return false;
 }
 

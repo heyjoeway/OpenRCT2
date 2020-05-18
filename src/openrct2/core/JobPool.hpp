@@ -49,10 +49,12 @@ public:
     JobPool(size_t maxThreads = 255)
     {
         maxThreads = std::min<size_t>(maxThreads, std::thread::hardware_concurrency());
+        #ifndef __EMSCRIPTEN__
         for (size_t n = 0; n < maxThreads; n++)
         {
             _threads.emplace_back(&JobPool::ProcessQueue, this);
         }
+        #endif
     }
 
     ~JobPool()
@@ -72,9 +74,14 @@ public:
 
     void AddTask(std::function<void()> workFn, std::function<void()> completionFn = nullptr)
     {
-        unique_lock lock(_mutex);
-        _pending.emplace_back(workFn, completionFn);
-        _condPending.notify_one();
+        #ifdef __EMSCRIPTEN__
+            workFn();
+            if (completionFn != nullptr) completionFn();
+        #elif
+            unique_lock lock(_mutex);
+            _pending.emplace_back(workFn, completionFn);
+            _condPending.notify_one();
+        #endif
     }
 
     void Join(std::function<void()> reportFn = nullptr)

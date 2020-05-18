@@ -54,6 +54,9 @@ namespace Platform
 
     std::string GetHomePath()
     {
+        #ifdef __EMSCRIPTEN__
+        return "/user";
+        #else
         std::string path;
         auto pw = getpwuid(getuid());
         if (pw != nullptr)
@@ -69,6 +72,7 @@ namespace Platform
             path = "/";
         }
         return path;
+        #endif
     }
 
     std::string FormatShortDate(std::time_t timestamp)

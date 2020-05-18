@@ -7,12 +7,23 @@ endif ()
 # Options
 option(DISABLE_OPENGL "Disable OpenGL support.")
 
+if (EMSCRIPTEN)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_SDL=2 -s FULL_ES3=1)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_SDL=2 -s FULL_ES3=1)
+
+    include_directories(                    /home/joseph/speexdsp-1.2rc3/include)
+    target_link_libraries(${PROJECT_NAME}   /home/joseph/speexdsp-1.2rc3/build/lib/libspeexdsp.a)
+
+    set(SPEEX_INCLUDE_DIRS                  /home/joseph/speex-1.2rc2/include)
+    target_link_libraries(${PROJECT_NAME}   /home/joseph/speex-1.2rc2/build/lib/libspeex.a)
+endif ()
+
 # Third party libraries
 if (MSVC)
     find_package(jansson REQUIRED)
     find_package(SDL2 REQUIRED)
     find_library(SPEEX_LDFLAGS libspeexdsp)
-else ()
+elseif (NOT EMSCRIPTEN)
     PKG_CHECK_MODULES(JANSSON REQUIRED jansson>=2.5)
     PKG_CHECK_MODULES(SDL2 REQUIRED sdl2)
     PKG_CHECK_MODULES(SPEEX REQUIRED speexdsp)
@@ -20,11 +31,7 @@ endif ()
 
 if (NOT DISABLE_OPENGL)
     # GL doesn't work nicely with macOS, while find_package doesn't work with multiarch on Ubuntu.
-    if (APPLE)
-        find_package(OpenGL REQUIRED)
-    elseif (NOT WIN32)
-        PKG_CHECK_MODULES(GL REQUIRED gl)
-    endif ()
+
 endif ()
 
 # Sources

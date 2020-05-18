@@ -36,6 +36,10 @@
 
 #include <memory>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 using namespace OpenRCT2;
 using namespace OpenRCT2::Ui;
 
@@ -623,6 +627,13 @@ namespace Config
             WriteTwitch(writer.get());
             WriteFont(writer.get());
             WritePlugin(writer.get());
+
+            #ifdef __EMSCRIPTEN__
+                EM_ASM(
+                    FS.syncfs(function (err) { console.log(err); });
+                );
+            #endif
+
             return true;
         }
         catch (const std::exception& ex)
@@ -686,6 +697,9 @@ namespace Config
         log_verbose("config_find_rct2_path(...)");
 
         static constexpr const utf8* searchLocations[] = {
+            #ifdef __EMSCRIPTEN__
+            R"(/data)",
+            #endif
             R"(C:\Program Files\Steam\steamapps\common\Rollercoaster Tycoon 2)",
             R"(C:\Program Files (x86)\Steam\steamapps\common\Rollercoaster Tycoon 2)",
             R"(C:\GOG Games\RollerCoaster Tycoon 2 Triple Thrill Pack)",

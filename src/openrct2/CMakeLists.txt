@@ -23,11 +23,70 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 SET_CHECK_CXX_FLAGS(${PROJECT_NAME})
 
 # GCC / Clang likes us to pass the -lstdc++fs flag to link C++17 filesystem implementation.
-if (NOT MINGW AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+if (NOT EMSCRIPTEN AND NOT MINGW AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_link_libraries(${PROJECT_NAME} stdc++fs)
     endif()
 endif()
+
+if (EMSCRIPTEN)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
+        -s TOTAL_MEMORY=17825792 \
+        -s USE_LIBPNG=1 -s USE_ZLIB=1 -s USE_ICU=1 -s USE_BZIP2=1 \
+        -s ALLOW_MEMORY_GROWTH=1 \
+        -s EXPORTED_FUNCTIONS='[\"_main\",\"_emscripten_main\"]' \
+        -s \"EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']\" \
+        --preload-file /home/joseph/RCT2@/data \
+        -Wno-unused-function -Wno-unused-private-field")
+
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+        -s TOTAL_MEMORY=17825792 \
+        -s USE_LIBPNG=1 -s USE_ZLIB=1 -s USE_ICU=1 -s USE_BZIP2=1 \
+        -s ALLOW_MEMORY_GROWTH=1 \
+        -s EXPORTED_FUNCTIONS='[\"_main\",\"_emscripten_main\"]' \
+        -s \"EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']\" \
+        --preload-file /home/joseph/RCT2@/data \
+        -Wno-unused-function -Wno-unused-private-field")
+
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
+        -O1 \
+        --profiling \
+        -falign-functions \
+        -fdelete-null-pointer-checks \
+        -finline-functions \
+        -foptimize-sibling-calls \
+        -fsched-interblock \
+        -fstrict-aliasing \
+        -s DISABLE_EXCEPTION_CATCHING=1, \
+        -s AGGRESSIVE_VARIABLE_ELIMINATION=1, \
+        -s ALIASING_FUNCTION_POINTERS=1 \
+    ")
+
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+        -O1 \
+        --profiling \
+        -falign-functions \
+        -fdelete-null-pointer-checks \
+        -finline-functions \
+        -foptimize-sibling-calls \
+        -fsched-interblock \
+        -fstrict-aliasing \
+        -s DISABLE_EXCEPTION_CATCHING=1, \
+        -s AGGRESSIVE_VARIABLE_ELIMINATION=1, \
+        -s ALIASING_FUNCTION_POINTERS=1 \
+    ")
+
+    set(JANSSON_INCLUDE_DIRS        /home/joseph/jansson-2.13.1/build/include)
+    set(JANSSON_STATIC_LIBRARIES    /home/joseph/jansson-2.13.1/build/lib/libjansson.a)
+
+    set(LIBZIP_INCLUDE_DIRS         /home/joseph/libzip-1.6.1/build/include)
+    set(LIBZIP_STATIC_LIBRARIES     /home/joseph/libzip-1.6.1/build/lib/libzip.a)
+
+    set(DUKTAPE_INCLUDE_DIRS        /home/joseph/duktape-2.5.0/src-custom/include)
+    set(DUKTAPE_STATIC_LIBRARY      /home/joseph/duktape-2.5.0/src-custom/lib/libduktape.a)
+
+    target_link_libraries(${PROJECT_NAME} idbfs.js)
+endif ()
 
 if (NOT DISABLE_NETWORK OR NOT DISABLE_HTTP)
     if (WIN32)
@@ -101,7 +160,9 @@ if (NOT DISABLE_GOOGLE_BENCHMARK)
 endif ()
 
 if (ENABLE_SCRIPTING)
-    find_package(duktape CONFIG REQUIRED)
+    if (NOT EMSCRIPTEN)
+        find_package(duktape CONFIG REQUIRED)
+    endif ()
     include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${DUKTAPE_INCLUDE_DIRS})
     if (STATIC)
         target_link_libraries(${PROJECT_NAME} ${DUKTAPE_STATIC_LIBRARY})
@@ -119,7 +180,7 @@ if (MSVC)
 
     find_path(LIBZIP_INCLUDE_DIRS zip.h)
     find_library(LIBZIP_LIBRARIES zip)
-else ()
+elseif (NOT EMSCRIPTEN)
     PKG_CHECK_MODULES(JANSSON REQUIRED jansson>=2.5)
     PKG_CHECK_MODULES(LIBZIP REQUIRED libzip>=1.0)
     PKG_CHECK_MODULES(ZLIB REQUIRED zlib)
@@ -162,7 +223,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(${PROJECT_NAME} Threads::Threads)
 
-if (NOT MINGW AND NOT MSVC)
+if (NOT MINGW AND NOT MSVC AND NOT EMSCRIPTEN)
     # For unicode code page conversion.
     find_package(ICU 59.0 REQUIRED COMPONENTS uc)
         
@@ -175,7 +236,7 @@ if (NOT MINGW AND NOT MSVC)
     endif ()
 endif ()
 
-if (NOT APPLE AND NOT MINGW AND NOT MSVC)
+if (NOT APPLE AND NOT MINGW AND NOT MSVC AND NOT EMSCRIPTEN)
     # This is ugly hack to work around https://bugs.launchpad.net/ubuntu/+source/gcc-5/+bug/1568899.
     # Once C++17 is enabled (and thus old compilers are no longer supported, this needs to be gone.
     # We cannot simply detect the _compiler_ version, as the bug exists with the C++ _library_
@@ -228,7 +289,7 @@ if (NOT OPENRCT2_COMMIT_SHA1_SHORT STREQUAL "HEAD")
         OPENRCT2_COMMIT_SHA1_SHORT="${OPENRCT2_COMMIT_SHA1_SHORT}")
 endif()
 
-if((X86 OR X86_64) AND NOT MSVC)
+if((X86 OR X86_64) AND NOT MSVC AND NOT EMSCRIPTEN)
     set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/drawing/SSE41Drawing.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
     set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/drawing/AVX2Drawing.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif()

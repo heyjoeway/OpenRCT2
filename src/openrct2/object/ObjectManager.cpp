@@ -556,6 +556,12 @@ private:
 
     template<typename T, typename TFunc> static void ParallelFor(const std::vector<T>& items, TFunc func)
     {
+        #ifdef __EMSCRIPTEN__
+        for (size_t i = 0; i < items.size(); i++)
+        {
+            func(i);
+        }
+        #else
         auto partitions = std::thread::hardware_concurrency();
         auto partitionSize = (items.size() + (partitions - 1)) / partitions;
         std::vector<std::thread> threads;
@@ -576,6 +582,7 @@ private:
         {
             t.join();
         }
+        #endif
     }
 
     std::vector<Object*> LoadObjects(std::vector<const ObjectRepositoryItem*>& requiredObjects, size_t* outNewObjectsLoaded)

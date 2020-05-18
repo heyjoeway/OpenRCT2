@@ -81,6 +81,10 @@ using namespace OpenRCT2::Paint;
 using namespace OpenRCT2::Scripting;
 using namespace OpenRCT2::Ui;
 
+#ifdef __EMSCRIPTEN__
+void EmscriptenLoop(void* vctx);
+#endif
+
 namespace OpenRCT2
 {
     class Context final : public IContext
@@ -846,7 +850,9 @@ namespace OpenRCT2
             }
 #endif // DISABLE_NETWORK
 
+#ifndef __EMSCRIPTEN__
             _stdInOutConsole.Start();
+#endif
             RunGameLoop();
         }
 
@@ -878,16 +884,12 @@ namespace OpenRCT2
                 RunFrame();
             } while (!_finished);
 #else
-            emscripten_set_main_loop_arg(
-                [](void* vctx) -> {
-                    auto ctx = reinterpret_cast<Context*>(vctx);
-                    ctx->RunFrame();
-                },
-                this, 0, 1);
+            emscripten_set_main_loop_arg(&EmscriptenLoop, this, 0, 1);
 #endif // __EMSCRIPTEN__
             log_verbose("finish openrct2 loop");
         }
 
+    public:
         void RunFrame()
         {
             // Make sure we catch the state change and reset it.
@@ -908,6 +910,7 @@ namespace OpenRCT2
             }
         }
 
+    private:
         void RunFixedFrame()
         {
             uint32_t currentTick = platform_get_ticks();
@@ -1171,6 +1174,14 @@ namespace OpenRCT2
         return Context::Instance;
     }
 } // namespace OpenRCT2
+
+#ifdef __EMSCRIPTEN__
+void EmscriptenLoop(void* vctx)
+{
+    auto ctx = reinterpret_cast<Context*>(vctx);
+    ctx->RunFrame();
+}
+#endif
 
 void context_init()
 {

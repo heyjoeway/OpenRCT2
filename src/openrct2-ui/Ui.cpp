@@ -21,6 +21,10 @@
 #include <openrct2/platform/platform.h>
 #include <openrct2/ui/UiContext.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 using namespace OpenRCT2;
 using namespace OpenRCT2::Audio;
 using namespace OpenRCT2::Ui;
@@ -30,15 +34,7 @@ template<typename T> static std::shared_ptr<T> to_shared(std::unique_ptr<T>&& sr
     return std::shared_ptr<T>(std::move(src));
 }
 
-/**
- * Main entry point for non-Windows systems. Windows instead uses its own DLL proxy.
- */
-#if defined(_MSC_VER) && !defined(__DISABLE_DLL_PROXY__)
-int NormalisedMain(int argc, const char** argv)
-#else
-int main(int argc, const char** argv)
-#endif
-{
+int main_cont(int argc, const char** argv) {
     std::unique_ptr<IContext> context;
     int32_t rc = EXIT_SUCCESS;
     int runGame = cmdline_run(argv, argc);
@@ -66,6 +62,47 @@ int main(int argc, const char** argv)
         rc = EXIT_FAILURE;
     }
     return rc;
+}
+
+#ifdef __EMSCRIPTEN__
+static int tmp_argc;
+static const char** tmp_argv;
+
+extern "C" {    
+    void emscripten_main() {
+        main_cont(tmp_argc, tmp_argv);
+    }
+}
+#endif
+
+/**
+ * Main entry point for non-Windows systems. Windows instead uses its own DLL proxy.
+ */
+#if defined(_MSC_VER) && !defined(__DISABLE_DLL_PROXY__)
+int NormalisedMain(int argc, const char** argv)
+#else
+int main(int argc, const char** argv)
+#endif
+{
+    #ifdef __EMSCRIPTEN__
+    tmp_argc = argc;
+    tmp_argv = argv;
+    EM_ASM(
+        // Make a directory other than '/'
+        FS.mkdir('/user');
+        // Then mount with IDBFS type
+        FS.mount(IDBFS, {}, '/user');
+
+        // Then sync
+        FS.syncfs(true, function (err) {
+            console.log("Intial syncFS done");
+            console.log(err);
+            Module.ccall("emscripten_main");
+        });
+    );
+    #else
+    return main_cont(argc, argv);
+    #endif
 }
 
 #ifdef __ANDROID__
